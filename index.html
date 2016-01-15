@@ -1,0 +1,210 @@
+<html>
+	<head>
+		<title>Game Of Life - My first Three.js app</title>
+		<style>
+			body { margin: 0; }
+			canvas { width: 100%; height: 100% }
+		</style>
+	</head>
+	<body>
+		<script src="three.min.js"></script>
+		<script>
+			var initialized = true;
+			
+			function addLights(scene){		
+				var light = new THREE.AmbientLight( 0xFFFFFF ); // soft white light
+				scene.add( light );			
+				
+				var light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
+				scene.add( light );
+				
+				var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.9 );
+				directionalLight.position.set( 15, 5, 30 );
+				scene.add( directionalLight );
+				
+				var light = new THREE.PointLight( 0xffffff, 1, 100 );
+				light.position.set( 30, 10, 50 );
+				scene.add( light );
+			}
+			
+			
+			function createCube(x,y){
+				var geometry = new THREE.BoxGeometry( 1, 1, 0.3 );
+				var material = new THREE.MeshBasicMaterial( { color: 0x050505 } );
+				var cube = new THREE.Mesh( geometry, material );
+				cube.position.x = x;
+				cube.position.y = y;
+				return cube;
+			}
+			
+			function setActive(cube){
+				cube.material.dispose();
+				cube.material = new THREE.MeshPhongMaterial( { 
+					color: 0x996633, 
+					specular: 0x050505,
+					shininess: 100
+				} );
+			}
+			
+			function setInactive(cube){
+			cube.material.dispose();
+				cube.material = new THREE.MeshPhongMaterial( { 
+					color: 0x090603, 
+					specular: 0x050505,
+					shininess: 100
+				} ); 
+			}
+			
+			function createLogicField(width, height){
+				var field = [];
+				var row = null;
+				for (var y=0; y < height; y++){
+					row = [];
+					for(var x=0; x < width; x++){
+						row.push(false);
+					}
+					field.push(row);
+				}
+				return field;
+			}
+			
+			
+			function createField(width, height, scene){
+				var size = 1;
+				var spacer = 0.3;
+				var xpos = 0;
+				var ypos = spacer + (size/2);
+				var field = [];
+				var row = null;
+				var element = null;
+				for (var y=0; y < height; y++){
+					xpos = spacer + (size/2)
+					row = [];
+					for(var x=0; x < width; x++){
+						element = createCube(xpos,ypos); 
+						scene.add(element);
+						row.push(element);
+						xpos += spacer + size;
+					}
+					field.push(row);
+					ypos += spacer+size;
+				}
+				return field;
+			}
+			
+			function update(logicField, cubeField){
+				var neighbourCount = createLogicField(logicField.length, logicField[0].length);
+				var height = logicField.length;
+				var width = logicField[0].length;
+				var count = 0;
+				var newState = 0;
+				var yt = false;
+				var yb = false;
+				var xl = false;
+				var xr = false;
+				for(var y=0; y < height; y++){
+					yb = y > 0;
+					yt = y < height-1;
+					for(var x=0; x < width; x++){
+						count =0;
+						xl = x > 0;
+						xr = x < width-1;
+						
+						if(yb){
+							count += (logicField[y-1][x] == 1)?1:0;
+							if(xl)
+								count += (logicField[y-1][x-1] == 1)?1:0;
+							if(xr)
+								count += (logicField[y-1][x+1] == 1)?1:0;
+						}
+						if(xl)
+							count += (logicField[y][x-1] == 1)?1:0;
+						if(xr)
+							count += (logicField[y][x+1] == 1)?1:0;
+							
+						if(yt){
+							count += (logicField[y+1][x] == 1)?1:0;
+							if(xl)
+								count += (logicField[y+1][x-1] == 1)?1:0;
+							if(xr)
+								count += (logicField[y+1][x+1] == 1)?1:0;							
+						}
+						neighbourCount[y][x] = count;
+					}
+				}
+				for(var y=0; y < height; y++){
+					for(var x=0; x < width; x++){
+						var newState = false;
+						if(logicField[y][x] == true){
+							if(neighbourCount[y][x] === 2 || neighbourCount[y][x] === 3)
+							{
+								newState = true;
+							}
+						}else if(neighbourCount[y][x] === 3){
+							newState = true;
+						}
+						
+						if(newState == logicField[y][x])
+							continue;
+							
+						logicField[y][x] = newState;
+						if(newState)
+							setActive(cubeField[y][x]);
+						else
+							setInactive(cubeField[y][x]);
+					}
+				}
+				return logicField;
+			}
+			
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+
+			var renderer = new THREE.WebGLRenderer();
+			
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+			addLights(scene);
+			var width = 40;
+			var height = 40;
+			var field = createField(width, height, scene);
+			var logicField = createLogicField(width, height);
+			
+			
+			for(var r=0; r < height*6; r++){
+				logicField[Math.floor(Math.random()*(height-1))][Math.floor(Math.random()*(width-1))] = true;
+			}
+			
+			
+			
+			camera.position.x = 5;
+			camera.position.y = height/2;
+			camera.position.z = height;
+			camera.lookAt(new THREE.Vector3( 15, height/2, 0 ));
+			for(var y=0; y < height; y++){
+				for(var x=0; x < width; x++){
+					if(logicField[y][x] == true){
+						setActive(field[y][x]);
+					}else{
+						setInactive(field[y][x]);
+					}
+				}
+			}
+			
+			
+			//update(logicField, field);
+			function automaticUpdate(){
+				update(logicField, field);
+				setTimeout(automaticUpdate, 250);
+			}
+			automaticUpdate();
+			var render = function () {
+				requestAnimationFrame( render );
+
+				renderer.render(scene, camera);
+			};
+
+			render();
+		</script>
+	</body>
+</html>
